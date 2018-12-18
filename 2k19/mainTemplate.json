@@ -1,0 +1,297 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "type": "string"
+        },
+        "adminPassword": {
+            "type": "securestring"
+        },
+        "awinguAdminPassword": {
+            "type": "securestring"
+        },
+        "domainName": {
+            "type": "string"
+        },
+        "netbios": {
+            "type": "string"
+        },
+        "appServerCount": {
+            "type": "int",
+            "defaultValue": 1
+        },
+        "winServerSize": {
+            "type": "string",
+            "defaultValue": "Standard_D2_v2"
+        },
+        "awinguServerSize": {
+            "type": "string",
+            "defaultValue": "Standard_D2"
+        },
+        "publicIpAddressName": {
+            "type": "string"
+        },
+        "publicIpDnsPrefix": {
+            "type": "string"
+        },
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string"
+        },
+        "artifactsBaseUrl": {
+            "type": "string",
+            "metadata": {
+                "artifactsBaseUrl": "",
+                "description": "Specifies the base location of the child templates and desired state configuration scripts."
+            },
+            "defaultValue": "https://kvscripts.blob.core.windows.net/kvscripts"
+        }
+    },
+    "variables": {
+        "apiVersion": "2017-05-10",
+        "location": "[parameters('location')]",
+        "winVM": {
+            "vmSize": "[parameters('winServerSize')]",
+            "imageSKU": "2019-Datacenter",
+            "imagePublisher": "MicrosoftWindowsServer",
+            "imageOffer": "WindowsServer"
+        },
+        "awinguVM": {
+            "vmSize": "[parameters('awinguServerSize')]",
+            "imageSKU": "az0-000c-01c",
+            "imagePublisher": "awingu",
+            "imageOffer": "awingu"
+        },
+        "adVmName": "awingu-ad",
+        "appServerVmBaseName": "awingu-app",
+        "awinguVmName": "awingu-vm",
+        "storageAccountName": "[concat('awstore', uniqueString(resourceGroup().id))]",
+        "virtualNetworkName": "[concat('awvirnet', uniqueString(resourceGroup().id))]",
+        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
+        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'default')]",
+        "publicIpAddressId": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIpAddressName'))]",
+        "artifactsLocation": "[concat(parameters('artifactsBaseUrl'), '/')]",
+        "adServerAddress": "10.7.0.4"
+    },
+    "resources": [
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "name": "deployInfrastructure",
+            "type": "Microsoft.Resources/deployments",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('artifactsLocation'), 'deploy_infrastructure.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "storageAccountName": {
+                        "value": "[variables('storageAccountName')]"
+                    },
+                    "virtualNetworkName": {
+                        "value": "[variables('virtualNetworkName')]"
+                    },
+                    "location": {
+                        "value": "[variables('location')]"
+                    },
+                    "publicIPAddressName": {
+                        "value": "[parameters('publicIPAddressName')]"
+                    },
+                    "publicIpDnsPrefix": {
+                        "value": "[parameters('publicIpDnsPrefix')]"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "name": "deployadserver",
+            "type": "Microsoft.Resources/deployments",
+            "dependsOn": [
+                "[concat('Microsoft.Resources/deployments/', 'deployInfrastructure')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('artifactsLocation'), 'deploy_ad.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "adminPassword": {
+                        "value": "[parameters('adminPassword')]"
+                    },
+                    "adminUsername": {
+                        "value": "[parameters('adminUsername')]"
+                    },
+                    "adVmName": {
+                        "value": "[variables('adVmName')]"
+                    },
+                    "artifactsLocation": {
+                        "value": "[variables('artifactsLocation')]"
+                    },
+                    "domainName": {
+                        "value": "[parameters('domainName')]"
+                    },
+                    "netbios": {
+                        "value": "[toUpper(parameters('netbios'))]"
+                    },
+                    "location": {
+                        "value": "[variables('location')]"
+                    },
+                    "subnetRef": {
+                        "value": "[variables('subnetRef')]"
+                    },
+                    "vmDiskBaseUri": {
+                        "value": "[reference('deployInfrastructure').outputs.vmDiskBaseUri.value]"
+                    },
+                    "winVM": {
+                        "value": "[variables('winVM')]"
+                    },
+                    "adServerAddress": {
+                        "value": "[variables('adServerAddress')]"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "name": "[concat('deployappserver', '-', copyIndex())]",
+            "type": "Microsoft.Resources/deployments",
+            "dependsOn": [
+                "[concat('Microsoft.Resources/deployments/', 'deployadserver')]"
+            ],
+            "copy": {
+                "name": "appservercopy",
+                "count": "[parameters('appServerCount')]"
+            },
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('artifactsLocation'), 'deploy_appservers.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "adminPassword": {
+                        "value": "[parameters('adminPassword')]"
+                    },
+                    "adminUsername": {
+                        "value": "[parameters('adminUsername')]"
+                    },
+                    "appServerName": {
+                        "value": "[concat(variables('appServerVmBaseName'), '-', copyIndex())]"
+                    },
+                    "artifactsLocation": {
+                        "value": "[variables('artifactsLocation')]"
+                    },
+                    "domainName": {
+                        "value": "[parameters('domainName')]"
+                    },
+                    "adServerAddress": {
+                        "value": "[variables('adServerAddress')]"
+                    },
+                    "location": {
+                        "value": "[variables('location')]"
+                    },
+                    "subnetRef": {
+                        "value": "[variables('subnetRef')]"
+                    },
+                    "vmDiskBaseUri": {
+                        "value": "[reference('deployInfrastructure').outputs.vmDiskBaseUri.value]"
+                    },
+                    "winVM": {
+                        "value": "[variables('winVM')]"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "name": "deploygpo",
+            "type": "Microsoft.Resources/deployments",
+            "dependsOn": [
+                "[concat('Microsoft.Resources/deployments/', 'deployappserver-0')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('artifactsLocation'), 'deploy_ad_gpo.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "adVmName": {
+                        "value": "[variables('adVmName')]"
+                    },
+                    "artifactsLocation": {
+                        "value": "[variables('artifactsLocation')]"
+                    },
+                    "domainName": {
+                        "value": "[parameters('domainName')]"
+                    },
+                    "location": {
+                        "value": "[variables('location')]"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "name": "deployawingu",
+            "type": "Microsoft.Resources/deployments",
+            "dependsOn": [
+                "[concat('Microsoft.Resources/deployments/', 'deployappserver-0')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('artifactsLocation'), 'deploy_awingu.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "adminPassword": {
+                        "value": "[parameters('adminPassword')]"
+                    },
+                    "adminUsername": {
+                        "value": "[parameters('adminUsername')]"
+                    },
+                    "awinguVmName": {
+                        "value": "[variables('awinguVmName')]"
+                    },
+                    "artifactsLocation": {
+                        "value": "[variables('artifactsLocation')]"
+                    },
+                    "location": {
+                        "value": "[variables('location')]"
+                    },
+                    "subnetRef": {
+                        "value": "[variables('subnetRef')]"
+                    },
+                    "vmDiskBaseUri": {
+                        "value": "[reference('deployInfrastructure').outputs.vmDiskBaseUri.value]"
+                    },
+                    "awinguVM": {
+                        "value": "[variables('awinguVM')]"
+                    },
+                    "adServerAddress": {
+                        "value": "[variables('adServerAddress')]"
+                    },
+                    "domainName": {
+                        "value": "[parameters('domainName')]"
+                    },
+                    "netbios": {
+                        "value": "[toUpper(parameters('netbios'))]"
+                    },
+                    "awinguAdminPassword": {
+                        "value": "[parameters('awinguAdminPassword')]"
+                    },
+                    "publicIpAddressId": {
+                        "value": "[variables('publicIpAddressId')]"
+                    },
+                    "appServerCount": {
+                        "value": "[parameters('appServerCount')]"
+                    }
+                }
+            }
+        }
+    ]
+}

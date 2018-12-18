@@ -1,0 +1,150 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminPassword": {
+            "type": "secureString"
+        },
+        "adminUsername": {
+            "type": "string"
+        },
+        "awinguVmName": {
+            "type": "string"
+        },
+        "artifactsLocation": {
+            "type": "string"
+        },
+        "location": {
+            "type": "string"
+        },
+        "subnetRef": {
+            "type": "string"
+        },
+        "vmDiskBaseUri": {
+            "type": "string"
+        },
+        "awinguVM": {
+            "type": "object"
+        },
+        "adServerAddress": {
+            "type": "string"
+        },
+        "domainName": {
+            "type": "string"
+        },
+        "netbios": {
+            "type": "string"
+        },
+        "awinguAdminPassword": {
+            "type": "securestring"
+        },
+        "publicIpAddressId": {
+            "type": "string"
+        },
+        "appServerCount": {
+            "type": "int"
+        }
+    },
+    "variables": {
+        "customScriptUrl": "[concat(parameters('artifactsLocation'), 'setup_awingu.py')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('awinguVmName')]",
+            "apiVersion": "2018-07-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[parameters('publicIpAddressId')]"
+                            },
+                            "subnet": {
+                                "id": "[parameters('subnetRef')]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('awinguVmName')]",
+            "apiVersion": "2018-06-01",
+            "location": "[parameters('location')]",
+            "plan": {
+                "name": "[parameters('awinguVM').imageSKU]",
+                "product": "[parameters('awinguVM').imageOffer]",
+                "publisher": "[parameters('awinguVM').imagePublisher]"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', parameters('awinguVmName'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('awinguVM').vmSize]"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('awinguVmName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[parameters('awinguVM').imagePublisher]",
+                        "offer": "[parameters('awinguVM').imageOffer]",
+                        "sku": "[parameters('awinguVM').imageSKU]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "osdisk",
+                        "vhd": {
+                            "uri": "[concat(parameters('vmDiskBaseUri'), parameters('awinguVmName'),'-osdisk.vhd')]"
+                        },
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "properties": {
+                                "primary": "true"
+                            },
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('awinguVmName'))]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('awinguVmName'), '/setupAwingu')]",
+            "apiVersion": "2018-06-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('awinguVmName'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "[concat(parameters('artifactsLocation'), 'setup_awingu.zip')]",
+                        "[concat(parameters('artifactsLocation'), 'setup_awingu_pre.py')]"
+                    ]
+                },
+                "protectedSettings": {
+                    "commandToExecute": "[concat('python3 setup_awingu_pre.py --dns \"', parameters('adServerAddress'), '\" --domain \"', parameters('domainName'), '\" --netbios \"', parameters('netbios'), '\" --admin-pass \"', base64(parameters('awinguAdminPassword')), '\" --domain-admin \"', base64(parameters('adminUsername')), '\" --domain-pass \"', base64(parameters('adminPassword')), '\" --app-server-count \"', parameters('appServerCount'), '\"')]"
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,264 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+    "handler": "Microsoft.Compute.MultiVm",
+    "version": "0.1.2-preview",
+    "parameters": {
+        "basics": [],
+        "steps": [
+            {
+                "name": "awinguEnvConfig",
+                "label": "Awingu",
+                "subLabel": {
+                    "preValidation": "Configure Awingu",
+                    "postValidation": "Done"
+                },
+                "bladeTitle": "Awingu Configuration",
+                "elements": [
+                    {
+                        "name": "publicIpAddressDnsPrefix",
+                        "type": "Microsoft.Network.PublicIpAddressCombo",
+                        "label": {
+                            "publicIpAddress": "Public IP address",
+                            "domainNameLabel": "DNS prefix"
+                        },
+                        "toolTip": {
+                            "publicIpAddress": "Public IP address used to access your Awingu environment.",
+                            "domainNameLabel": "DNS prefix for the awingu environment. You will be able to access your Awingu environment on {prefix}.{location}.cloudapp.azure.com."
+                        },
+                        "defaultValue": {
+                            "publicIpAddressName": "Awingu"
+                        },
+                        "constraints": {
+                            "required": {
+                                "domainNameLabel": true
+                            }
+                        },
+                        "options": {
+                            "hideNone": true,
+                            "hideDomainNameLabel": false,
+                            "hideExisting": true
+                        },
+                        "visible": true
+                    },
+                    {
+                        "name": "awinguAdminPassword",
+                        "type": "Microsoft.Common.PasswordBox",
+                        "label": {
+                            "password": "Awingu recovery password",
+                            "confirmPassword": "Confirm password"
+                        },
+                        "toolTip": "This password allows you to recover your Awingu environment in case of backend problems.",
+                        "constraints": {
+                            "required": true,
+                            "regex": "^((?=.*\\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\\W).{8,32})$",
+                            "validationMessage": "Please provide a valid password between 8 and 32 characters long containing at least 1 lower letter, 1 capital letter, 1 digit and 1 special character."
+                        }
+                    },
+                    {
+                        "name": "awinguServerSize",
+                        "type": "Microsoft.Compute.SizeSelector",
+                        "label": "Awingu appliance size",
+                        "toolTip": "",
+                        "recommendedSizes": [
+                            "Standard_F2",
+                            "Standard_D2_v2",
+                            "Standard_F4"
+                        ],
+                        "osPlatform": "Linux",
+                        "imageReference": {
+                            "publisher": "awingu",
+                            "offer": "awingu",
+                            "sku": "az0-000c-01c"
+                        },
+                        "count": 1,
+                        "visible": true
+                    }
+                ]
+            },
+            {
+                "name": "windowsEnvConfig",
+                "label": "Windows Backend",
+                "subLabel": {
+                    "preValidation": "Configure Windows Backend",
+                    "postValidation": "Done"
+                },
+                "bladeTitle": "Windows Backend Configuration",
+                "elements": [
+                    {
+                        "name": "adminUsername",
+                        "type": "Microsoft.Compute.UserNameTextBox",
+                        "label": "Admin username",
+                        "toolTip": "Admin username for Awingu and Windows backend.",
+                        "defaultValue": "",
+                        "constraints": {
+                            "required": true,
+                            "regex": "^(?!awingu-admin$)[a-zA-Z0-9-]+$",
+                            "validationMessage": "Please provide a username containing only letter, digits and dashes. 'awingu-admin' is not allowed"
+                        },
+                        "osPlatform": "Windows",
+                        "visible": true
+                    },
+                    {
+                        "name": "adminPassword",
+                        "type": "Microsoft.Compute.CredentialsCombo",
+                        "label": {
+                            "password": "Admin password",
+                            "confirmPassword": "Confirm password"
+                        },
+                        "toolTip": {
+                            "password": "Admin password for Awingu and Windows backend."
+                        },
+                        "constraints": {
+                            "required": true
+                        },
+                        "options": {
+                            "hideConfirmation": false
+                        },
+                        "osPlatform": "Windows",
+                        "visible": true
+                    },
+                    {
+                        "name": "domainName",
+                        "type": "Microsoft.Common.TextBox",
+                        "label": "Domain name",
+                        "toolTip": "Active Directory FQDN.",
+                        "constraints": {
+                            "required": true,
+                            "regex": "^(?!-)(?![aA][wW][iI][nN][gG][uU]\\.[lL][oO][cC][aA][lL])(?=.{3,63}$)((([a-zA-Z0-9]+[a-zA-Z0-9\\-]*){1,63})\\.)+([a-zA-Z]{2,63})$",
+                            "validationMessage": "Please provide a valid FQDN. (e.g. company.local)"
+                        }
+                    },
+                    {
+                        "name": "netbios",
+                        "type": "Microsoft.Common.TextBox",
+                        "label": "Netbios",
+                        "toolTip": "Active Directory Netbios.",
+                        "constraints": {
+                            "required": true,
+                            "regex": "^[a-zA-Z0-9]{1,15}$",
+                            "validationMessage": "Please provide a valid netbios. (e.g. COMPANY)"
+                        }
+                    },
+                    {
+                        "name": "appServerCount",
+                        "type": "Microsoft.Common.DropDown",
+                        "label": "Application server count",
+                        "defaultValue": "1",
+                        "toolTip": "Specify the number of application servers you want to deploy.",
+                        "constraints": {
+                            "allowedValues": [
+                                {
+                                    "label": "1",
+                                    "value": 1
+                                },
+                                {
+                                    "label": "2",
+                                    "value": 2
+                                },
+                                {
+                                    "label": "3",
+                                    "value": 3
+                                },
+                                {
+                                    "label": "4",
+                                    "value": 4
+                                },
+                                {
+                                    "label": "5",
+                                    "value": 5
+                                },
+                                {
+                                    "label": "6",
+                                    "value": 6
+                                },
+                                {
+                                    "label": "7",
+                                    "value": 7
+                                },
+                                {
+                                    "label": "8",
+                                    "value": 8
+                                },
+                                {
+                                    "label": "9",
+                                    "value": 9
+                                },
+                                {
+                                    "label": "10",
+                                    "value": 10
+                                },
+                                {
+                                    "label": "11",
+                                    "value": 11
+                                },
+                                {
+                                    "label": "12",
+                                    "value": 12
+                                },
+                                {
+                                    "label": "13",
+                                    "value": 13
+                                },
+                                {
+                                    "label": "14",
+                                    "value": 14
+                                },
+                                {
+                                    "label": "15",
+                                    "value": 15
+                                },
+                                {
+                                    "label": "16",
+                                    "value": 16
+                                },
+                                {
+                                    "label": "17",
+                                    "value": 17
+                                },
+                                {
+                                    "label": "18",
+                                    "value": 18
+                                },
+                                {
+                                    "label": "19",
+                                    "value": 19
+                                },
+                                {
+                                    "label": "20",
+                                    "value": 20
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "winServerSize",
+                        "type": "Microsoft.Compute.SizeSelector",
+                        "label": "Windows server size",
+                        "toolTip": "Size for Windows application servers and Active Directory server.",
+                        "recommendedSizes": [
+                            "Standard_D2_v2",
+                            "Standard_D3_v2",
+                            "Standard_D4_v2"
+                        ],
+                        "osPlatform": "Windows",
+                        "count": "[add(1, steps('windowsEnvConfig').appServerCount)]",
+                        "visible": true
+                    }
+                ]
+            }
+        ],
+        "outputs": {
+            "awinguServerSize": "[steps('awinguEnvConfig').awinguServerSize]",
+            "awinguAdminPassword": "[steps('awinguEnvConfig').awinguAdminPassword]",
+            "publicIpAddressName": "[steps('awinguEnvConfig').publicIpAddressDnsPrefix.name]",
+            "publicIpDnsPrefix": "[steps('awinguEnvConfig').publicIpAddressDnsPrefix.domainNameLabel]",
+            "winServerSize": "[steps('windowsEnvConfig').winServerSize]",
+            "appServerCount": "[steps('windowsEnvConfig').appServerCount]",
+            "adminUsername": "[steps('windowsEnvConfig').adminUsername]",
+            "adminPassword": "[steps('windowsEnvConfig').adminPassword.password]",
+            "domainName": "[steps('windowsEnvConfig').domainName]",
+            "netbios": "[steps('windowsEnvConfig').netbios]",
+            "location": "[location()]"
+        }
+    }
+}
