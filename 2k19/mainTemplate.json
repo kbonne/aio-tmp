@@ -53,7 +53,7 @@
         "location": "[parameters('location')]",
         "winVM": {
             "vmSize": "[parameters('winServerSize')]",
-            "imageSKU": "2019-Datacenter",
+            "imageSKU": "2016-Datacenter",
             "imagePublisher": "MicrosoftWindowsServer",
             "imageOffer": "WindowsServer"
         },
