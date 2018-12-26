@@ -45,7 +45,7 @@
                 "artifactsBaseUrl": "",
                 "description": "Specifies the base location of the child templates and desired state configuration scripts."
             },
-            "defaultValue": "https://raw.githubusercontent.com/kbonne/aio-tmp/master/2k19/"
+            "defaultValue": "https://kvscripts.blob.core.windows.net/kvscripts"
         }
     },
     "variables": {
